@@ -1,0 +1,330 @@
+definitions:
+  domain.DriverLocation:
+    properties:
+      driver_id:
+        type: string
+      id:
+        type: string
+      location:
+        $ref: '#/definitions/domain.Point'
+      status:
+        type: string
+      timestamp:
+        type: string
+    type: object
+  domain.Point:
+    properties:
+      coordinates:
+        items:
+          type: number
+        type: array
+      type:
+        type: string
+    type: object
+  handler.ErrorResponse:
+    properties:
+      error:
+        type: string
+    type: object
+  handler.FindDriversRequest:
+    properties:
+      latitude:
+        maximum: 90
+        minimum: -90
+        type: number
+      longitude:
+        maximum: 180
+        minimum: -180
+        type: number
+      radius:
+        type: number
+    required:
+    - latitude
+    - longitude
+    - radius
+    type: object
+  handler.LoginRequest:
+    properties:
+      password:
+        type: string
+      username:
+        type: string
+    required:
+    - password
+    - username
+    type: object
+  handler.LoginResponse:
+    properties:
+      token:
+        type: string
+    type: object
+  handler.RegisterRequest:
+    properties:
+      email:
+        type: string
+      password:
+        maxLength: 100
+        minLength: 6
+        type: string
+      username:
+        maxLength: 50
+        minLength: 3
+        type: string
+    required:
+    - email
+    - password
+    - username
+    type: object
+  handler.RegisterResponse:
+    properties:
+      user_id:
+        type: string
+      username:
+        type: string
+    type: object
+  handler.Response:
+    properties:
+      message:
+        type: string
+    type: object
+  handler.UpdateLocationRequest:
+    properties:
+      driver_id:
+        type: string
+      latitude:
+        maximum: 90
+        minimum: -90
+        type: number
+      longitude:
+        maximum: 180
+        minimum: -180
+        type: number
+    required:
+    - driver_id
+    - latitude
+    - longitude
+    type: object
+info:
+  contact: {}
+paths:
+  /auth/login:
+    post:
+      consumes:
+      - application/json
+      description: Authenticate user and return JWT token
+      parameters:
+      - description: Login credentials
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.LoginRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Successfully authenticated
+          schema:
+            $ref: '#/definitions/handler.LoginResponse'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Invalid credentials
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: User login
+      tags:
+      - auth
+  /auth/register:
+    post:
+      consumes:
+      - application/json
+      description: Register a new user with username, email, and password
+      parameters:
+      - description: Register request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.RegisterRequest'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: User successfully registered
+          schema:
+            $ref: '#/definitions/handler.RegisterResponse'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "409":
+          description: User already exists
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      summary: Register new user
+      tags:
+      - auth
+  /locations:
+    post:
+      consumes:
+      - application/json
+      description: Update a single driver's location using latitude and longitude
+      parameters:
+      - description: Location update request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.UpdateLocationRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Location successfully updated
+          schema:
+            $ref: '#/definitions/handler.Response'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update driver location
+      tags:
+      - locations
+  /locations/batch:
+    post:
+      consumes:
+      - application/json
+      description: Update locations for multiple drivers in batch
+      parameters:
+      - description: Batch location update request
+        in: body
+        name: request
+        required: true
+        schema:
+          items:
+            $ref: '#/definitions/domain.DriverLocation'
+          type: array
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Locations successfully updated
+          schema:
+            $ref: '#/definitions/handler.Response'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Update multiple driver locations
+      tags:
+      - locations
+  /locations/nearby:
+    post:
+      consumes:
+      - application/json
+      description: Find drivers within a specified radius of a given location
+      parameters:
+      - description: Find drivers request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.FindDriversRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: List of nearby drivers
+          schema:
+            items:
+              $ref: '#/definitions/domain.DriverLocation'
+            type: array
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Find nearby drivers
+      tags:
+      - locations
+  /match:
+    post:
+      consumes:
+      - application/json
+      description: Find the nearest available driver within a specified radius
+      parameters:
+      - description: Find nearest driver request
+        in: body
+        name: request
+        required: true
+        schema:
+          $ref: '#/definitions/handler.FindDriversRequest'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: Nearest driver found
+          schema:
+            $ref: '#/definitions/domain.DriverLocation'
+        "400":
+          description: Invalid request parameters
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "401":
+          description: Unauthorized
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "404":
+          description: No drivers found
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+        "500":
+          description: Internal server error
+          schema:
+            $ref: '#/definitions/handler.ErrorResponse'
+      security:
+      - BearerAuth: []
+      summary: Find nearest driver
+      tags:
+      - matching
+swagger: "2.0"

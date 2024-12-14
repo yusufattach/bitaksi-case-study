@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  mongodb:
+    image: mongo:5.0
+    container_name: taxi-matcher-mongodb
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=${MONGO_INITDB_ROOT_USERNAME}
+      - MONGO_INITDB_ROOT_PASSWORD=${MONGO_INITDB_ROOT_PASSWORD}
+    ports:
+      - "${MONGO_PORT}:27017"
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - taxi-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
+
+  driver-location-api:
+    build:
+      context: ..
+      dockerfile: deployments/Dockerfile
+      args:
+        - SERVICE_NAME=driver-location
+    container_name: taxi-matcher-driver-location
+    environment:
+      - MONGODB_URI=mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017
+      - JWT_SECRET=${JWT_SECRET}
+      - MONGODB_DATABASE=bitaksi
+      - PORT=8080
+    ports:
+      - "${DRIVER_LOCATION_PORT}:8080"
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - taxi-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  matching-api:
+    build:
+      context: ..
+      dockerfile: deployments/Dockerfile
+      args:
+        - SERVICE_NAME=matching-api
+    container_name: taxi-matcher-matching
+    environment:
+      - MONGODB_URI=mongodb://${MONGO_INITDB_ROOT_USERNAME}:${MONGO_INITDB_ROOT_PASSWORD}@mongodb:27017
+      - JWT_SECRET=${JWT_SECRET}
+      - MONGODB_DATABASE=bitaksi
+      - PORT=8081
+    ports:
+      - "${MATCHING_API_PORT}:8081"
+    depends_on:
+      driver-location-api:
+        condition: service_healthy
+    networks:
+      - taxi-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8081/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+networks:
+  taxi-network:
+    driver: bridge
+
+volumes:
+  mongodb_data: 
